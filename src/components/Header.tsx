@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Tab } from '../App';
 
@@ -13,6 +12,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     { id: 'play', label: '遊ぶ', icon: <GameIcon /> },
     { id: 'edit', label: '直す', icon: <WandIcon /> },
     { id: 'animate', label: '動かす', icon: <FilmIcon /> },
+    { id: 'help', label: 'ヘルプ', icon: <QuestionIcon /> },
   ];
 
   return (
@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               }`}
             >
               {tab.icon}
-              <span>{tab.label}</span>
+              <span className="hidden md:inline">{tab.label}</span>
             </button>
           ))}
         </nav>
@@ -64,6 +64,12 @@ const WandIcon = () => (
 const FilmIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+    </svg>
+);
+
+const QuestionIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
 
