@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { editImage } from '../services/geminiService';
 import { fileToBase64 } from '../utils/fileUtils';
@@ -22,7 +21,7 @@ const EyeIcon = () => (
 
 const EyeOffIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 01-1.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
     </svg>
 );
 
@@ -35,6 +34,12 @@ const TrashIcon = () => (
 const DiamondIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+);
+
+const DownloadIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
     </svg>
 );
 
@@ -63,6 +68,12 @@ const TurnSideIcon = () => (
     </svg>
 );
 
+const UserRemoveIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+    </svg>
+);
+
 
 const predefinedEdits = [
   {
@@ -79,14 +90,10 @@ const predefinedEdits = [
       </svg>
     ),
   },
-    {
-    label: 'かなしみ',
-    prompt: '被写体を悲しい表情にしてください',
-    icon: (
-         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-             <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" transform="scale(1, -1) translate(0, -24)" />
-         </svg>
-    ),
+  {
+    label: '人物を消す',
+    prompt: '画像から人物を完全に消去し、背景を自然に補完してください',
+    icon: <UserRemoveIcon />,
   },
   {
     label: 'てをふる',
@@ -209,10 +216,16 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageToEdit, onEditingComplet
         try {
             const resultBase64 = await editImage(prompt, baseImage.base64, baseImage.mimeType, useProModel);
             setLayers(prev => prev.map(l => l.id === newLayer.id ? { ...l, imageBase64: resultBase64, isLoading: false } : l));
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : '編集中にエラーが発生しました。';
-            setError(errorMessage);
-            setLayers(prev => prev.map(l => l.id === newLayer.id ? { ...l, error: errorMessage, isLoading: false } : l));
+        } catch (err: any) {
+            let msg = err instanceof Error ? err.message : '編集中にエラーが発生しました。';
+            if (msg.includes("Requested entity was not found")) {
+                setHasApiKey(false);
+                setError("APIキーが無効、または課金設定が未完了です。再度キーを選択してください。");
+                await handleSelectKey();
+            } else {
+                setError(msg);
+            }
+            setLayers(prev => prev.map(l => l.id === newLayer.id ? { ...l, error: msg, isLoading: false } : l));
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -229,6 +242,17 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageToEdit, onEditingComplet
 
         if (window.confirm('このレイヤーを削除しますか？')) {
             setLayers(prev => prev.slice(layerIndex + 1));
+        }
+    };
+
+    const handleDownload = () => {
+        if (displayImage) {
+            const link = document.createElement('a');
+            link.href = displayImage;
+            link.download = `atelier-edit-${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     };
     
@@ -308,7 +332,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageToEdit, onEditingComplet
                     </div>
                     
                      {/* Pro Mode Toggle */}
-                    <div className="p-3 bg-gradient-to-r from-purple-50 to-rose-50 rounded-2xl border border-rose-100">
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-rose-50 rounded-[2rem] border border-rose-100 space-y-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
                                 <div className="text-rose-500">
@@ -327,10 +351,17 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageToEdit, onEditingComplet
                                 <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-400"></div>
                             </label>
                         </div>
-                        {useProModel && !hasApiKey && (
-                            <div className="mt-2 text-xs">
-                                <p className="text-stone-600 mb-1">Nano Banana Proを使用します。</p>
-                                <button onClick={handleSelectKey} className="text-rose-500 font-bold underline">APIキーを選択</button>
+                        {useProModel && (
+                            <div className="space-y-2">
+                                <p className="text-[9px] text-stone-500 leading-relaxed">
+                                    プロモード（有料版）は、最高品質のNano Banana Proエンジンを使用します。
+                                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-rose-400 font-bold underline ml-1">課金設定</a>が必要です。
+                                </p>
+                                {!hasApiKey && (
+                                    <button onClick={handleSelectKey} className="w-full py-2 bg-rose-500 rounded-xl text-[10px] font-bold text-white hover:bg-rose-600 transition-colors shadow-sm">
+                                        APIキーを選択してアップグレード
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -362,7 +393,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageToEdit, onEditingComplet
                                                     </button>
                                                     <button onClick={() => handleDeleteLayer(layer.id)} className="p-2 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors" title="削除">
                                                         <TrashIcon/>
-                                                    </button>
+                                                     </button>
                                                 </div>
                                            </div>
                                             {layer.error && <p className="text-xs text-rose-500 mt-1 font-bold">{layer.error}</p>}
@@ -375,7 +406,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageToEdit, onEditingComplet
                 </div>
 
                 {/* Image Viewer */}
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 space-y-6">
                     <div className="w-full aspect-square bg-stone-50 rounded-[2rem] flex items-center justify-center border-4 border-white shadow-inner overflow-hidden sticky top-24">
                         {isLoading && !displayImage ? (
                             <div className="text-center z-10">
@@ -390,6 +421,17 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageToEdit, onEditingComplet
                             </div>
                         )}
                     </div>
+                    {displayImage && (
+                        <div className="flex justify-center">
+                            <button 
+                                onClick={handleDownload}
+                                className="flex items-center space-x-2 px-8 py-3.5 bg-white rounded-full shadow-lg text-stone-600 text-sm font-black tracking-widest hover:bg-stone-50 hover:-translate-y-0.5 transition-all"
+                            >
+                                <DownloadIcon />
+                                <span>SAVE IMAGE</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
             {error && !layers.some(l => l.error) && <p className="mt-6 text-center text-rose-600 bg-rose-50 p-3 rounded-2xl border border-rose-200 font-bold">{error}</p>}
