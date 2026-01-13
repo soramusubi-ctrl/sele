@@ -4,8 +4,9 @@ import Header from './components/Header';
 import ImageGenerator from './components/ImageGenerator';
 import ImageEditor from './components/ImageEditor';
 import VideoGenerator from './components/VideoGenerator';
+import HelpPage from './components/HelpPage';
 
-export type Tab = 'create' | 'play' | 'edit' | 'animate';
+export type Tab = 'create' | 'play' | 'edit' | 'animate' | 'help';
 
 export interface ImageForEditing {
   url: string;
@@ -60,6 +61,8 @@ const App: React.FC = () => {
         return <ImageEditor imageToEdit={imageToEdit} onEditingComplete={() => setImageToEdit(null)} />;
       case 'animate':
         return <VideoGenerator imageToAnimate={imageToAnimate} onAnimationComplete={() => setImageToAnimate(null)} />;
+      case 'help':
+        return <HelpPage />;
       default:
         return null;
     }
@@ -68,13 +71,13 @@ const App: React.FC = () => {
   return (
     <div className="bg-[#fffcf9] min-h-screen font-sans text-stone-600 selection:bg-rose-100">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="p-4 md:p-8">
+      <main className="p-4 md:p-8 pt-24">
         <div className="max-w-6xl mx-auto">
           {renderContent()}
         </div>
       </main>
-      <footer className="text-center p-12 text-stone-300 text-xs tracking-widest">
-        <p>QUIET ATELIER &copy; 2025</p>
+      <footer className="text-center p-12 text-stone-300 text-[10px] tracking-[0.2em] uppercase">
+        <p>Quiet Atelier Studio &copy; 2025 - Built with Gemini API</p>
       </footer>
     </div>
   );
