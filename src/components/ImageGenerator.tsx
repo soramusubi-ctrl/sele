@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { generateImage, summarizeConversation, analyzeGuideImage, GuideInfo } from '../services/geminiService';
 import { fileToBase64 } from '../utils/fileUtils';
@@ -65,7 +64,7 @@ const predefinedStyles = [
     { value: '3d-render', label: '3D', mode: 'create' },
     { value: 'plushie', label: 'ぬいぐるみ', mode: 'play' },
     { value: 'manga', label: '4コマ漫画', mode: 'play' },
-    { value: 'sns-icons-12', label: 'SNSアイコン(12種)', mode: 'play' },
+    { value: 'sns-icons-6', label: 'SNSアイコン(6種)', mode: 'play' },
     { value: 'instruction-manual', label: 'Databook Style', mode: 'play' },
     { value: 'picture-book', label: '絵本の見開き', mode: 'play' },
     { value: 'other', label: 'その他', mode: 'both' },
@@ -111,6 +110,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
   const [guideInfo, setGuideInfo] = useState<GuideInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -134,6 +134,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
         try {
             await aistudio.openSelectKey();
             setHasApiKey(true);
+            setShowUpgradeModal(false);
         } catch (e) {
             console.error(e);
         }
@@ -209,7 +210,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
   const handleGenerate = async () => {
     if (!prompt) return;
     if (useProModel && !hasApiKey) {
-        setError("プロモードを利用するにはAPIキーの選択が必要です。");
+        setShowUpgradeModal(true);
         return;
     }
 
@@ -249,9 +250,12 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
             【左ページ】：情景（${prompt}）に基づいた、優しく語りかけるような「手書き風の日本語テキスト」が配置されている。
             【右ページ】：最高品質の水彩画タッチで描かれた、「${prompt}」の幻想的な挿絵。 cinematic lighting, masterpieces of children's book illustration.`;
         } else if (style === 'manga') {
-            finalPrompt = `「${prompt}」というストーリーを、日本の伝統的な「4コマ漫画（Yonkoma Manga）」形式で描いてください。 Japanese Manga Style.`;
-        } else if (style === 'sns-icons-12') {
-            finalPrompt = `SNS用の円形アイコン素材12種類のセットを、1枚の画像に3x4のグリッド形式で描いてください。 Vibrant digital art, cute chibi avatar collection.`;
+            finalPrompt = `「${prompt}」というストーリーを、伝統的な日本の「4コマ漫画（Yonkoma Manga）」形式で描いてください。
+            【構成】：物語が1コマ目から順に「起（導入）」「承（展開）」「転（変化）」「結（結末）」の4つのコマ割りで進むように描いてください。
+            【描画】：明確なコマの境界線を持つ高品質なマンガスタイル。 Japanese Manga Style with Ki-Sho-Ten-Ketsu narrative structure.`;
+        } else if (style === 'sns-icons-6') {
+            const charNames = activeCharacters.map(c => `「${c.name}」`).join('や');
+            finalPrompt = `SNS用の円形アイコン素材6種類のセットを、1枚の画像に2x3のグリッド形式で描いてください。${charNames ? `${charNames}をモデルにした、` : ''} Vibrant digital art, cute chibi avatar collection.`;
         } else {
             const styleLabel = predefinedStyles.find(s => s.value === style)?.label;
             finalPrompt += `\nStyle: ${styleLabel}`;
@@ -272,8 +276,15 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
                 setIsAnalyzing(false);
             }
         }
-    } catch (err) {
-        setError(err instanceof Error ? err.message : "描画に失敗しました。");
+    } catch (err: any) {
+        let msg = err instanceof Error ? err.message : "描画に失敗しました。";
+        if (msg.includes("Requested entity was not found")) {
+            setHasApiKey(false);
+            setError("プロプランのアクティベーションに失敗しました。再度設定を確認してください。");
+            setShowUpgradeModal(true);
+        } else {
+            setError(msg);
+        }
     } finally {
         setIsLoading(false);
     }
@@ -284,6 +295,32 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
 
   return (
     <div className="max-w-4xl mx-auto space-y-12 pb-24">
+      {/* アップグレード案内モーダル（演出） */}
+      {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-white rounded-[3rem] p-8 max-w-sm w-full shadow-2xl space-y-6 text-center animate-in zoom-in-95 duration-300">
+                  <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mx-auto text-4xl">💎</div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black text-stone-700">プロ・メンバーシップ</h3>
+                    <p className="text-sm text-stone-400">
+                        最高品質のAIモデルで、あなたの空想を完璧な形に。4K出力や動画生成も解放されます。
+                    </p>
+                  </div>
+                  <div className="bg-stone-50 p-4 rounded-2xl text-[10px] text-stone-500 text-left leading-relaxed">
+                      ※この機能の利用にはGoogleアカウントとの連携（APIキー設定）が必要です。連携には<a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-rose-400 underline font-bold">Google Cloudの課金設定</a>が必要です。
+                  </div>
+                  <div className="space-y-3">
+                    <button onClick={handleSelectKey} className="w-full py-4 bg-rose-400 text-white rounded-full font-black tracking-widest hover:bg-rose-500 transition-all shadow-lg shadow-rose-100">
+                        プロ版を有効化する
+                    </button>
+                    <button onClick={() => { setShowUpgradeModal(false); setUseProModel(false); }} className="text-stone-400 text-xs font-bold hover:text-stone-600">
+                        今はスタンダードで描く
+                    </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-stone-700">
             {mode === 'create' ? '空想を書き起こす' : '物語で遊ぶ'}
@@ -296,7 +333,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
       <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.5fr] gap-8">
         <div className="space-y-6">
           
-          {/* Step 1：視点を決める（アングル選択） */}
+          {/* Step 1：視点を決める */}
           <section className="bg-white rounded-[2rem] p-6 border-2 border-stone-100 shadow-sm space-y-4">
             <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 1：視点を決める</h3>
             <div className="flex flex-wrap gap-1.5">
@@ -317,9 +354,9 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
             </div>
           </section>
 
-          {/* Step 2：物語を紡ぐ（会話ログ入力） */}
+          {/* Step 2：物語を紡ぐ */}
           <section className="bg-white rounded-[2rem] p-6 border-2 border-stone-100 shadow-sm space-y-3">
-            <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 2：物語を紡ぐ</h3>
+            <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 2：物語を紡ぐ (今日の会話ログをコピペ)</h3>
             <textarea 
               value={log} 
               onChange={(e) => setLog(e.target.value)} 
@@ -332,10 +369,10 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
             </button>
           </section>
 
-          {/* Step 3：画材を揃える（人物・背景や小物の画像） */}
+          {/* Step 3：参考画像 ある？ */}
           <section className="bg-white rounded-[2rem] p-6 border-2 border-stone-100 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 3：画材を揃える</h3>
+              <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 3：参考画像 ある？(登場人物や小物の画像)</h3>
               <button onClick={handleAddCharacter} className="flex items-center space-x-2 px-3 py-1 bg-stone-50 border border-stone-100 rounded-full text-rose-400 text-[9px] font-bold hover:bg-rose-100 transition-all">
                 <UserPlusIcon />
                 <span>追加</span>
@@ -355,9 +392,9 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
             </div>
           </section>
 
-          {/* Step 4：下書きを描く（プロンプト生成） */}
+          {/* Step 4：こんなシーンでどう？ */}
           <section className="bg-white rounded-[2rem] p-6 border-2 border-stone-100 shadow-sm space-y-4">
-            <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 4：下書きを描く</h3>
+            <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 4：こんなシーンでどう？ (プロンプト生成・編集)</h3>
             <div className="flex flex-wrap gap-2 mb-2">
                 {activeCharacters.map(char => (
                     <button
@@ -378,10 +415,10 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
             />
           </section>
 
-          {/* Step 5：筆致を選ぶ（画風・比率） */}
+          {/* Step 5：お好きなスタイルで */}
           <div className="grid grid-cols-2 gap-4">
             <section className="bg-white rounded-[2rem] p-6 border-2 border-stone-100 shadow-sm space-y-3">
-              <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 5：筆致</h3>
+              <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">Step 5：お好きなスタイルで</h3>
               <div className="grid grid-cols-1 gap-1">
                 {filteredStyles.slice(0, 6).map(s => (
                   <button key={s.value} onClick={() => setStyle(s.value)} className={`p-1.5 rounded-lg border text-[9px] font-bold transition-all ${style === s.value ? 'border-rose-300 bg-rose-50 text-rose-500 shadow-sm' : 'border-stone-100 bg-white text-stone-500'}`}>
@@ -391,7 +428,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
               </div>
             </section>
             <section className="bg-white rounded-[2rem] p-6 border-2 border-stone-100 shadow-sm space-y-3">
-              <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">比率</h3>
+              <h3 className="text-[10px] font-black text-rose-300 tracking-[0.2em] uppercase">画風・比率</h3>
               <div className="flex flex-col space-y-2">
                 {[
                   { value: '1:1', icon: <SquareIcon /> },
@@ -412,23 +449,24 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
 
           {/* Step 6：仕上げる（描く！） */}
           <section className="space-y-4 pt-4">
-            <div className="flex items-center justify-between px-6 bg-white py-3 rounded-full border-2 border-stone-100">
-              <div className="flex items-center space-x-2">
-                <DiamondIcon />
-                <span className="text-[10px] font-black text-stone-400 tracking-[0.2em] uppercase">Professional Engine</span>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer scale-90">
-                <input type="checkbox" className="sr-only peer" checked={useProModel} onChange={(e) => setUseProModel(e.target.checked)} />
-                <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-400"></div>
-              </label>
+            <div className={`flex items-center justify-between px-6 py-4 rounded-[2rem] border-2 transition-all ${useProModel ? 'bg-rose-50 border-rose-200' : 'bg-white border-stone-100'}`}>
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-xl ${useProModel ? 'bg-rose-400 text-white shadow-lg' : 'bg-stone-100 text-stone-400'}`}>
+                    <DiamondIcon />
+                  </div>
+                  <div>
+                    <span className={`block text-[10px] font-black tracking-[0.1em] uppercase ${useProModel ? 'text-rose-500' : 'text-stone-400'}`}>Pro Membership</span>
+                    <span className="text-[9px] text-stone-400 font-bold">{useProModel ? 'プロ版エンジン起動中' : 'プロ機能を利用する'}</span>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer scale-110">
+                  <input type="checkbox" className="sr-only peer" checked={useProModel} onChange={(e) => setUseProModel(e.target.checked)} />
+                  <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-400"></div>
+                </label>
             </div>
-            {useProModel && !hasApiKey && (
-              <button onClick={handleSelectKey} className="w-full py-2 bg-rose-50 rounded-2xl text-[10px] font-bold text-rose-500 animate-pulse border border-rose-100">
-                プロモードにはAPIキーの選択が必要です
-              </button>
-            )}
-            <Button onClick={handleGenerate} isLoading={isLoading} disabled={!prompt || (useProModel && !hasApiKey)} className="w-full py-7 text-xl rounded-full bg-rose-200 hover:bg-rose-300 text-rose-600 shadow-xl border-none transition-all active:scale-95 font-black tracking-[0.1em]">
-              Step 6：仕上げる
+
+            <Button onClick={handleGenerate} isLoading={isLoading} disabled={!prompt} className="w-full py-7 text-xl rounded-full bg-rose-200 hover:bg-rose-300 text-rose-600 shadow-xl border-none transition-all active:scale-95 font-black tracking-[0.1em]">
+              Step 6：描いてみせます
             </Button>
           </section>
 
@@ -549,7 +587,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
             ) : (
               <div className="text-center text-stone-200 space-y-3">
                 <div className="text-6xl opacity-10">🕯️</div>
-                <p className="font-black uppercase tracking-[0.4em] text-[10px]">Atelier Quiet // Waiting for Inspiration</p>
+                <p className="font-black uppercase tracking-[0.4em] text-[10px]">Atelier Quiet // この一瞬を残したい</p>
               </div>
             )}
           </div>
@@ -561,4 +599,3 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ mode, characters, setCh
 };
 
 export default ImageGenerator;
-
