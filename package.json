@@ -1,0 +1,3 @@
+npm create vite@latest
+npm install react react-dom
+npm install -D vite typescript @types/react @types/react-dom
